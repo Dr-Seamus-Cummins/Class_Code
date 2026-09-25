@@ -1,0 +1,93 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Python drawing</title>
+  <style>
+    * { box-sizing: border-box; }
+    body { margin: 0; background: white; font: 16px/1.5 Arial, sans-serif; }
+    #drawing { width: 100%; height: 650px; overflow: auto; }
+    #status { padding: 12px 16px; margin: 0; }
+    #output { padding: 12px 16px; margin: 0; white-space: pre-wrap; overflow-wrap: anywhere; }
+    #error { padding: 16px; margin: 0; color: #9e2020; background: #fff0f0; white-space: pre-wrap; }
+    [hidden] { display: none !important; }
+  </style>
+</head>
+<body>
+  <p id="status" role="status">Loading Python drawing…</p>
+  <div id="drawing" aria-label="Python turtle drawing"></div>
+  <div id="output" hidden></div>
+  <pre id="error" role="alert" hidden></pre>
+
+  <script src="https://skulpt.org/js/skulpt.min.js"></script>
+  <script src="https://skulpt.org/js/skulpt-stdlib.js"></script>
+  <script>
+    // CHANGE THIS LINE to the path of your Python file.
+    // This example expects Flower.py beside this HTML file.
+    const PYTHON_FILE = "./Flower.py";
+
+    // Supported: Skulpt-compatible Python, including turtle graphics.
+    // Not supported: desktop Tkinter, NumPy, arbitrary pip packages.
+    // Serve this file over HTTP(S), e.g. GitHub Pages, not file://.
+    async function runPythonFile() {
+      const status = document.getElementById("status");
+      const output = document.getElementById("output");
+      const error = document.getElementById("error");
+
+      try {
+        if (typeof Sk === "undefined" || !Sk.builtinFiles) {
+          throw new Error("The Python runtime could not load. Check your internet connection or whether skulpt.org is blocked.");
+        }
+
+        const response = await fetch(PYTHON_FILE, { cache: "no-cache" });
+        if (!response.ok) {
+          throw new Error("Cannot load " + PYTHON_FILE + " (HTTP " + response.status + "). Check the filename, capital letters and GitHub Pages publishing folder.");
+        }
+        const code = await response.text();
+        if (/^\s*(<!doctype html|<html)/i.test(code)) {
+          throw new Error("The file address returned an HTML page, not Python code. Use the GitHub Pages file address, not a github.com/blob link.");
+        }
+
+        Sk.configure({
+          __future__: Sk.python3,
+          output: function (text) {
+            output.hidden = false;
+            output.textContent += text;
+          },
+          read: function (name) {
+            const files = Sk.builtinFiles.files;
+            if (!Object.prototype.hasOwnProperty.call(files, name)) {
+              throw new Error("Module unavailable in this browser runner: " + name);
+            }
+            return files[name];
+          },
+          inputfun: function (promptText) {
+            const answer = window.prompt(promptText);
+            return Promise.resolve(answer === null ? "" : answer);
+          },
+          inputfunTakesPrompt: true,
+          execLimit: 120000,
+          yieldLimit: 100
+        });
+
+        Sk.TurtleGraphics = Sk.TurtleGraphics || {};
+        Sk.TurtleGraphics.target = "drawing";
+        Sk.TurtleGraphics.width = Math.max(300, Math.min(1000, document.getElementById("drawing").clientWidth));
+        Sk.TurtleGraphics.height = 650;
+
+        status.hidden = true;
+        await Sk.misceval.asyncToPromise(function () {
+          return Sk.importMainWithBody("<stdin>", false, code, true);
+        });
+      } catch (problem) {
+        status.hidden = true;
+        error.hidden = false;
+        error.textContent = "Could not run the Python file.\n\n" + String(problem);
+      }
+    }
+
+    runPythonFile();
+  </script>
+</body>
+</html>
