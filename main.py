@@ -1,6 +1,5 @@
 import turtle
 import math
-import numpy
 
 def draw_multicolor_square(t, sz):
     for i in ["red", "purple", "hotpink", "blue","yellow","green"]:
