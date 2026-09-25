@@ -4,45 +4,79 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Python Drawing</title>
+  <style>
+    html, body {
+      width: 100%; height: 100%; margin: 0; padding: 0;
+      overflow: hidden; background: #fff;
+    }
+    #viewport { position: fixed; inset: 0; overflow: hidden; }
+    #drawing {
+      position: absolute; width: 600px; height: 800px;
+      transform-origin: top left;
+    }
+    #message {
+      position: fixed; top: 0; left: 0; right: 0;
+      z-index: 100; margin: 0; padding: 12px;
+      font: 16px/1.4 Arial, sans-serif;
+      color: #17233a; background: #fff;
+      overflow-wrap: anywhere;
+    }
+    #message:empty { display: none; }
+  </style>
   <script src="https://skulpt.org/js/skulpt.min.js"></script>
   <script src="https://skulpt.org/js/skulpt-stdlib.js"></script>
 </head>
 <body>
-  <div id="drawing"></div>
+  <div id="viewport">
+    <div id="drawing" role="img" aria-label="Animated Python turtle drawing"></div>
+  </div>
   <p id="message" role="status">Loading…</p>
-
   <script>
-    // Change this filename to run a different Python program.
     const PYTHON_FILE = "./main.py";
+    const DRAWING_WIDTH = 600;
+    const DRAWING_HEIGHT = 800;
+
+    // Resize the existing drawing without restarting the Python animation.
+    function fitDrawing() {
+      const viewport = document.getElementById("viewport");
+      const drawing = document.getElementById("drawing");
+      const scale = Math.min(
+        viewport.clientWidth / DRAWING_WIDTH,
+        viewport.clientHeight / DRAWING_HEIGHT
+      );
+      drawing.style.left = ((viewport.clientWidth - DRAWING_WIDTH * scale) / 2) + "px";
+      drawing.style.top = ((viewport.clientHeight - DRAWING_HEIGHT * scale) / 2) + "px";
+      drawing.style.transform = "scale(" + scale + ")";
+    }
+    new ResizeObserver(fitDrawing).observe(document.getElementById("viewport"));
+    fitDrawing();
 
     async function run() {
       const message = document.getElementById("message");
       try {
+        if (typeof Sk === "undefined" || !Sk.builtinFiles) {
+          throw new Error("Could not load the Python runtime. Check your internet connection.");
+        }
         Sk.configure({
           __future__: Sk.python3,
           read: function (name) {
             const file = Sk.builtinFiles.files[name];
-            if (file === undefined) {
-              throw new Error("Module not available: " + name);
-            }
+            if (file === undefined) throw new Error("Module not available: " + name);
             return file;
           }
         });
-
         Sk.TurtleGraphics = {
           target: "drawing",
-          width: 600,
-          height: 800
+          width: DRAWING_WIDTH,
+          height: DRAWING_HEIGHT
         };
-
-        const response = await fetch(PYTHON_FILE);
-        if (!response.ok) {
-          throw new Error("Cannot find " + PYTHON_FILE);
-        }
-
+        const response = await fetch(PYTHON_FILE, { cache: "no-cache" });
+        if (!response.ok) throw new Error("Cannot load " + PYTHON_FILE + " (HTTP " + response.status + ")");
         const code = await response.text();
+        if (/^\s*(<!doctype html|<html)/i.test(code)) {
+          throw new Error("The Python file address returned a webpage. Check PYTHON_FILE.");
+        }
         message.textContent = "";
-
         await Sk.misceval.asyncToPromise(function () {
           return Sk.importMainWithBody("<stdin>", false, code, true);
         });
@@ -50,7 +84,6 @@
         message.textContent = String(error);
       }
     }
-
     run();
   </script>
 </body>
