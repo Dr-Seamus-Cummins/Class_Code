@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Python Drawing</title>
+  <script src="https://skulpt.org/js/skulpt.min.js"></script>
+  <script src="https://skulpt.org/js/skulpt-stdlib.js"></script>
+</head>
+<body>
+  <div id="drawing"></div>
+  <p id="message" role="status">Loading…</p>
+
+  <script>
+    // Change this filename to run a different Python program.
+    const PYTHON_FILE = "./main.py";
+
+    async function run() {
+      const message = document.getElementById("message");
+      try {
+        Sk.configure({
+          __future__: Sk.python3,
+          read: function (name) {
+            const file = Sk.builtinFiles.files[name];
+            if (file === undefined) {
+              throw new Error("Module not available: " + name);
+            }
+            return file;
+          }
+        });
+
+        Sk.TurtleGraphics = {
+          target: "drawing",
+          width: 500,
+          height: 400
+        };
+
+        const response = await fetch(PYTHON_FILE);
+        if (!response.ok) {
+          throw new Error("Cannot find " + PYTHON_FILE);
+        }
+
+        const code = await response.text();
+        message.textContent = "";
+
+        await Sk.misceval.asyncToPromise(function () {
+          return Sk.importMainWithBody("<stdin>", false, code, true);
+        });
+      } catch (error) {
+        message.textContent = String(error);
+      }
+    }
+
+    run();
+  </script>
+</body>
+</html>
