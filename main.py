@@ -82,10 +82,4 @@ for i in range(1):
     tess.forward(145)
     
     
-
-
-
-
-
-
-    wn.mainloop()
+wn.mainloop()
