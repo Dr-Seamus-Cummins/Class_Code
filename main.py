@@ -8,7 +8,7 @@ def draw_multicolor_square(t, sz):
         t.left(60)
 wn = turtle.Screen()
 wn.bgcolor("lightgreen")
-wn.tracer(0,1)
+wn.tracer(1,0)
 tess = turtle.Turtle()
 tess.pensize(3)
 size = 30
